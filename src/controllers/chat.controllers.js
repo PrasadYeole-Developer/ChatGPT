@@ -14,6 +14,7 @@ const createChat = async (req, res) => {
       id: chat._id,
       title: chat.title,
       lastActivity: chat.lastActivity,
+      userId: user._id,
     },
   });
 };

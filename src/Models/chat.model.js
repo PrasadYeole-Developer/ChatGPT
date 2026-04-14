@@ -1,4 +1,4 @@
-const { mongoose, mongo } = require("mongoose");
+const { mongoose } = require("mongoose");
 
 const chatSchema = new mongoose.Schema(
   {
@@ -8,7 +8,7 @@ const chatSchema = new mongoose.Schema(
       required: true,
     },
     title: {
-      title: String,
+      type: String,
       required: true,
     },
     lastActivity: {
