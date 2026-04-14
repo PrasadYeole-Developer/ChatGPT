@@ -1,7 +1,8 @@
 const jwt = require("jsonwebtoken");
 const userModel = require("../Models/user.model");
+require("dotenv").config();
 
-const authMiddleware = async (req, res, next) => {
+const authUser = async (req, res, next) => {
   const { token } = res.cookies;
   if (!token) {
     return res.status(401).json({
@@ -17,3 +18,5 @@ const authMiddleware = async (req, res, next) => {
     return res.status(500).json({ message: "Interval server error" });
   }
 };
+
+module.exports = { authUser };
