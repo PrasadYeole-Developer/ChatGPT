@@ -2,6 +2,7 @@ const { Server } = require("socket.io");
 const cookie = require("cookie");
 const jwt = require("jsonwebtoken");
 const userModel = require("../Models/user.model");
+const aiService = require("../services/ai.service");
 require("dotenv").config();
 
 function initSocketServer(httpServer) {
@@ -28,8 +29,13 @@ function initSocketServer(httpServer) {
   io.on("connection", (socket) => {
     console.log("User connected: ", socket.user);
     console.log("New socket connection: ", socket.id);
-    socket.on("ai-message", (messagePayload) => {
+    socket.on("ai-message", async (messagePayload) => {
       console.log(messagePayload);
+      const response = await aiService.generateResponse(messagePayload.content);
+      socket.emit("ai-response", {
+        content: response,
+        chat: messagePayload.chat,
+      });
     });
   });
 }
