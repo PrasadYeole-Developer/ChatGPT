@@ -35,7 +35,16 @@ function initSocketServer(httpServer) {
         content: messagePayload.content,
         role: "user",
       });
-      const response = await aiService.generateResponse(messagePayload.content);
+      const chatHistory = await messageModel.find({
+        chat: messagePayload.chat,
+      });
+      const mappedChatHistory = chatHistory.map((item) => {
+        return {
+          role: item.role,
+          parts: [{ text: item.content }],
+        };
+      });
+      const response = await aiService.generateResponse(mappedChatHistory);
       await messageModel.create({
         chat: messagePayload.chat,
         user: socket.user._id,
