@@ -5,7 +5,6 @@ const userModel = require("../models/user.model");
 const aiService = require("../services/ai.service");
 const messageModel = require("../models/message.model");
 const { createMemory } = require("../services/vector.service");
-const { nanoid } = require("nanoid");
 require("dotenv").config();
 
 function initSocketServer(httpServer) {
@@ -30,9 +29,8 @@ function initSocketServer(httpServer) {
   });
 
   io.on("connection", (socket) => {
-    const uniqueId = nanoid();
     socket.on("ai-message", async (messagePayload) => {
-      await messageModel.create({
+      const message = await messageModel.create({
         chat: messagePayload.chat,
         user: socket.user._id,
         content: messagePayload.content,
@@ -41,7 +39,7 @@ function initSocketServer(httpServer) {
       const vectors = await aiService.generateVectors(messagePayload.content);
       await createMemory({
         vectors: vectors,
-        messageId: uniqueId,
+        messageId: message._id.toString(),
         metadata: {
           chat: messagePayload.chat,
           user: socket.user._id,
@@ -62,11 +60,20 @@ function initSocketServer(httpServer) {
         };
       });
       const response = await aiService.generateResponse(mappedChatHistory);
-      await messageModel.create({
+      const responseMessage = await messageModel.create({
         chat: messagePayload.chat,
         user: socket.user._id,
         content: response,
         role: "model",
+      });
+      const responseVectors = await aiService.generateVectors(messagePayload.content);
+      await createMemory({
+        vectors: responseVectors,
+        messageId: responseMessage._id.toString(),
+        metadata: {
+          chat: messagePayload.chat,
+          user: socket.user._id,
+        },
       });
       socket.emit("ai-response", {
         content: response,
