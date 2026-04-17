@@ -4,6 +4,8 @@ const jwt = require("jsonwebtoken");
 const userModel = require("../models/user.model");
 const aiService = require("../services/ai.service");
 const messageModel = require("../models/message.model");
+const { createMemory } = require("../services/vector.service");
+const { nanoid } = require("nanoid");
 require("dotenv").config();
 
 function initSocketServer(httpServer) {
@@ -28,6 +30,7 @@ function initSocketServer(httpServer) {
   });
 
   io.on("connection", (socket) => {
+    const uniqueId = nanoid();
     socket.on("ai-message", async (messagePayload) => {
       await messageModel.create({
         chat: messagePayload.chat,
@@ -36,6 +39,14 @@ function initSocketServer(httpServer) {
         role: "user",
       });
       const vectors = await aiService.generateVectors(messagePayload.content);
+      await createMemory({
+        vectors: vectors,
+        messageId: uniqueId,
+        metadata: {
+          chat: messagePayload.chat,
+          user: socket.user._id,
+        },
+      });
       const chatHistory = await messageModel
         .find({
           chat: messagePayload.chat,
