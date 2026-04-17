@@ -35,9 +35,15 @@ function initSocketServer(httpServer) {
         content: messagePayload.content,
         role: "user",
       });
-      const chatHistory = await messageModel.find({
-        chat: messagePayload.chat,
-      }).sort({ createdAt: -1 }).limit(20).lean().reverse();
+      const vectors = await aiService.generateVectors(messagePayload.content);
+      const chatHistory = await messageModel
+        .find({
+          chat: messagePayload.chat,
+        })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean()
+        .reverse();
       const mappedChatHistory = chatHistory.map((item) => {
         return {
           role: item.role,

@@ -19,7 +19,7 @@ async function generateVectors(content) {
       outputDimensionality: 768,
     },
   });
-  return response.embeddings;
+  return response.embeddings[0].values;
 }
 
-module.exports = { generateResponse };
+module.exports = { generateResponse, generateVectors };
