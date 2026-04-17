@@ -8,13 +8,15 @@ const pc = new Pinecone({
 const index = pc.Index(process.env.PINECONE_INDEX_NAME);
 
 async function createMemory({ vectors, metadata, messageId }) {
-  await index.upsert([
-    {
-      id: messageId,
-      vectors: vectors,
-      metadata: metadata,
-    },
-  ]);
+  await index.upsert({
+    records: [
+      {
+        id: messageId,
+        values: vectors,
+        metadata,
+      },
+    ],
+  });
 }
 
 async function queryMemory({ queryVector, limit = 5, metadata }) {
