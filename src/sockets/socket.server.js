@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const userModel = require("../models/user.model");
 const aiService = require("../services/ai.service");
 const messageModel = require("../models/message.model");
-const { createMemory } = require("../services/vector.service");
+const { createMemory, queryMemory } = require("../services/vector.service");
 require("dotenv").config();
 
 function initSocketServer(httpServer) {
@@ -29,34 +29,41 @@ function initSocketServer(httpServer) {
   });
 
   io.on("connection", (socket) => {
-    try {
-      socket.on("ai-message", async (messagePayload) => {
+    socket.on("ai-message", async (messagePayload) => {
+      if (!messagePayload?.content?.trim()) {
+        return socket.emit("error", "Message cannot be empty");
+      }
+      try {
         const message = await messageModel.create({
           chat: messagePayload.chat,
           user: socket.user._id,
           content: messagePayload.content,
           role: "user",
         });
-        console.log(messagePayload.content);
         const vectors = await aiService.generateVectors(messagePayload.content);
-        console.log(vectors);
-
         await createMemory({
           vectors: vectors,
           messageId: message._id.toString(),
           metadata: {
             chat: messagePayload.chat,
             user: socket.user._id,
+            text: messagePayload.content,
           },
         });
-        const chatHistory = await messageModel
-          .find({
-            chat: messagePayload.chat,
-          })
-          .sort({ createdAt: -1 })
-          .limit(20)
-          .lean()
-          .reverse();
+        const memory = await queryMemory({
+          queryVector: vectors,
+          limit: 5,
+          metadata: {},
+        });
+        const chatHistory = (
+          await messageModel
+            .find({
+              chat: messagePayload.chat,
+            })
+            .sort({ createdAt: -1 })
+            .limit(20)
+            .lean()
+        ).reverse();
         const mappedChatHistory = chatHistory.map((item) => {
           return {
             role: item.role,
@@ -79,17 +86,18 @@ function initSocketServer(httpServer) {
           metadata: {
             chat: messagePayload.chat,
             user: socket.user._id,
+            text: responseMessage.content,
           },
         });
         socket.emit("ai-response", {
           content: response,
           chat: messagePayload.chat,
         });
-      });
-    } catch (err) {
-      console.error("Socket error:", err);
-      socket.emit("error", "Something went wrong");
-    }
+      } catch (err) {
+        console.error("Socket error:", err);
+        socket.emit("error", "Something went wrong");
+      }
+    });
   });
 }
 
