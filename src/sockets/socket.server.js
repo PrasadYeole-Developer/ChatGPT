@@ -1,9 +1,9 @@
 const { Server } = require("socket.io");
 const cookie = require("cookie");
 const jwt = require("jsonwebtoken");
-const userModel = require("../Models/user.model");
+const userModel = require("../models/user.model");
 const aiService = require("../services/ai.service");
-const messageModel = require("../Models/message.model");
+const messageModel = require("../models/message.model");
 require("dotenv").config();
 
 function initSocketServer(httpServer) {
