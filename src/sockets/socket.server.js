@@ -46,7 +46,7 @@ function initSocketServer(httpServer) {
           messageId: message._id.toString(),
           metadata: {
             chat: messagePayload.chat,
-            user: socket.user._id,
+            user: socket.user._id.toString(),
             text: messagePayload.content,
           },
         });
@@ -54,7 +54,7 @@ function initSocketServer(httpServer) {
           queryVector: vectors,
           limit: 5,
           metadata: {
-            // user: socket.user._id,
+            user: { $eq: socket.user._id.toString() },
           },
         });
         const chatHistory = (
@@ -79,7 +79,7 @@ function initSocketServer(httpServer) {
             role: "system",
             parts: [
               {
-                text: `Relevant past context:\n${memory.map((m) => m.metadata.text).join("\n")}`,
+                text: `Relevant past context:\n${memory.map((item) => item.metadata.text).join("\n")}`,
               },
             ],
           },
