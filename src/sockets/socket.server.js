@@ -100,7 +100,7 @@ function initSocketServer(httpServer) {
           messageId: responseMessage._id.toString(),
           metadata: {
             chat: messagePayload.chat,
-            user: socket.user._id,
+            user: socket.user._id.toString(),
             text: responseMessage.content,
           },
         });
