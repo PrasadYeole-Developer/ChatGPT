@@ -34,30 +34,34 @@ function initSocketServer(httpServer) {
         return socket.emit("error", "Message cannot be empty");
       }
       try {
-        const message = await messageModel.create({
-          chat: messagePayload.chat,
-          user: socket.user._id,
-          content: messagePayload.content,
-          role: "user",
-        });
-        const vectors = await aiService.generateVectors(messagePayload.content);
-        await createMemory({
+        const [message, vectors] = await Promise.all([
+          (message = await messageModel.create({
+            chat: messagePayload.chat,
+            user: socket.user._id,
+            content: messagePayload.content,
+            role: "user",
+          })),
+          (vectors = await aiService.generateVectors(messagePayload.content)),
+        ]);
+
+        const [memory, chatHistory] = await Promise.all([
+                  await createMemory({
           vectors: vectors,
           messageId: message._id.toString(),
           metadata: {
             chat: messagePayload.chat,
-            user: socket.user._id.toString(),
+            user: socket.user._id,
             text: messagePayload.content,
           },
-        });
-        const memory = await queryMemory({
+        }),
+        memory = await queryMemory({
           queryVector: vectors,
           limit: 5,
           metadata: {
             user: socket.user._id,
           },
-        });
-        const chatHistory = (
+        }),
+        chatHistory = (
           await messageModel
             .find({
               chat: messagePayload.chat,
@@ -65,7 +69,8 @@ function initSocketServer(httpServer) {
             .sort({ createdAt: -1 })
             .limit(20)
             .lean()
-        ).reverse();
+        ).reverse()
+        ]);
 
         const stm = chatHistory.map((item) => {
           return {
@@ -100,7 +105,7 @@ function initSocketServer(httpServer) {
           messageId: responseMessage._id.toString(),
           metadata: {
             chat: messagePayload.chat,
-            user: socket.user._id.toString(),
+            user: socket.user._id,
             text: responseMessage.content,
           },
         });
