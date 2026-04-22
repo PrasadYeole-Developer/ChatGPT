@@ -34,38 +34,44 @@ function initSocketServer(httpServer) {
         return socket.emit("error", "Message cannot be empty");
       }
       try {
-        const message = await messageModel.create({
-          chat: messagePayload.chat,
-          user: socket.user._id,
-          content: messagePayload.content,
-          role: "user",
-        });
-        const vectors = await aiService.generateVectors(messagePayload.content);
-        await createMemory({
-          vectors: vectors,
-          messageId: message._id.toString(),
-          metadata: {
+        const [message, vectors] = await Promise.all([
+          messageModel.create({
             chat: messagePayload.chat,
-            user: socket.user._id.toString(),
-            text: messagePayload.content,
-          },
-        });
-        const memory = await queryMemory({
-          queryVector: vectors,
-          limit: 5,
-          metadata: {
-            // user: { $eq: socket.user._id.toString() },
-          },
-        });
-        const chatHistory = (
-          await messageModel
+            user: socket.user._id,
+            content: messagePayload.content,
+            role: "user",
+          }),
+          aiService.generateVectors(messagePayload.content),
+        ]);
+
+        const [memory, chatHistoryRaw] = await Promise.all([
+          queryMemory({
+            queryVector: vectors,
+            limit: 5,
+            metadata: {
+              user: socket.user._id,
+            },
+          }),
+          messageModel
             .find({
               chat: messagePayload.chat,
             })
             .sort({ createdAt: -1 })
             .limit(20)
-            .lean()
-        ).reverse();
+            .lean(),
+        ]);
+
+        const chatHistory = chatHistoryRaw.reverse();
+
+        await createMemory({
+          vectors: vectors,
+          messageId: message._id.toString(),
+          metadata: {
+            chat: messagePayload.chat,
+            user: socket.user._id,
+            text: messagePayload.content,
+          },
+        });
 
         const stm = chatHistory.map((item) => {
           return {
@@ -74,16 +80,18 @@ function initSocketServer(httpServer) {
           };
         });
 
-        const ltm = [
-          {
-            role: "system",
-            parts: [
+        const ltm = memory.length
+          ? [
               {
-                text: `Relevant past context:\n${memory.map((item) => item.metadata.text).join("\n")}`,
+                role: "system",
+                parts: [
+                  {
+                    text: `Relevant past context:\n${memory.map((item) => item.metadata?.text ?? "").join("\n")}`,
+                  },
+                ],
               },
-            ],
-          },
-        ];
+            ]
+          : [];
 
         const response = await aiService.generateResponse([...ltm, ...stm]);
         const responseMessage = await messageModel.create({
@@ -100,7 +108,7 @@ function initSocketServer(httpServer) {
           messageId: responseMessage._id.toString(),
           metadata: {
             chat: messagePayload.chat,
-            user: socket.user._id.toString(),
+            user: socket.user._id,
             text: responseMessage.content,
           },
         });
