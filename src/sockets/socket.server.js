@@ -54,7 +54,7 @@ function initSocketServer(httpServer) {
           queryVector: vectors,
           limit: 5,
           metadata: {
-            user: { $eq: socket.user._id.toString() },
+            // user: { $eq: socket.user._id.toString() },
           },
         });
         const chatHistory = (
