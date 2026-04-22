@@ -35,17 +35,35 @@ function initSocketServer(httpServer) {
       }
       try {
         const [message, vectors] = await Promise.all([
-          (message = await messageModel.create({
+          messageModel.create({
             chat: messagePayload.chat,
             user: socket.user._id,
             content: messagePayload.content,
             role: "user",
-          })),
-          (vectors = await aiService.generateVectors(messagePayload.content)),
+          }),
+          aiService.generateVectors(messagePayload.content),
         ]);
 
-        const [memory, chatHistory] = await Promise.all([
-                  await createMemory({
+        const [memory, chatHistoryRaw] = await Promise.all([
+          queryMemory({
+            queryVector: vectors,
+            limit: 5,
+            metadata: {
+              user: socket.user._id,
+            },
+          }),
+          messageModel
+            .find({
+              chat: messagePayload.chat,
+            })
+            .sort({ createdAt: -1 })
+            .limit(20)
+            .lean(),
+        ]);
+
+        const chatHistory = chatHistoryRaw.reverse();
+
+        await createMemory({
           vectors: vectors,
           messageId: message._id.toString(),
           metadata: {
@@ -53,24 +71,7 @@ function initSocketServer(httpServer) {
             user: socket.user._id,
             text: messagePayload.content,
           },
-        }),
-        memory = await queryMemory({
-          queryVector: vectors,
-          limit: 5,
-          metadata: {
-            user: socket.user._id,
-          },
-        }),
-        chatHistory = (
-          await messageModel
-            .find({
-              chat: messagePayload.chat,
-            })
-            .sort({ createdAt: -1 })
-            .limit(20)
-            .lean()
-        ).reverse()
-        ]);
+        });
 
         const stm = chatHistory.map((item) => {
           return {
@@ -79,16 +80,18 @@ function initSocketServer(httpServer) {
           };
         });
 
-        const ltm = [
-          {
-            role: "system",
-            parts: [
+        const ltm = memory.length
+          ? [
               {
-                text: `Relevant past context:\n${memory.map((item) => item.metadata.text).join("\n")}`,
+                role: "system",
+                parts: [
+                  {
+                    text: `Relevant past context:\n${memory.map((item) => item.metadata?.text ?? "").join("\n")}`,
+                  },
+                ],
               },
-            ],
-          },
-        ];
+            ]
+          : [];
 
         const response = await aiService.generateResponse([...ltm, ...stm]);
         const responseMessage = await messageModel.create({
