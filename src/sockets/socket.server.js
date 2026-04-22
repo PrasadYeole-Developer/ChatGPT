@@ -94,15 +94,22 @@ function initSocketServer(httpServer) {
           : [];
 
         const response = await aiService.generateResponse([...ltm, ...stm]);
-        const responseMessage = await messageModel.create({
-          chat: messagePayload.chat,
-          user: socket.user._id,
+
+        socket.emit("ai-response", {
           content: response,
-          role: "model",
+          chat: messagePayload.chat,
         });
-        const responseVectors = await aiService.generateVectors(
-          responseMessage.content,
-        );
+
+        const [responseMessage, responseVectors] = await Promise.all([
+          messageModel.create({
+            chat: messagePayload.chat,
+            user: socket.user._id,
+            content: response,
+            role: "model",
+          }),
+          aiService.generateVectors(response),
+        ]);
+
         await createMemory({
           vectors: responseVectors,
           messageId: responseMessage._id.toString(),
@@ -111,10 +118,6 @@ function initSocketServer(httpServer) {
             user: socket.user._id,
             text: responseMessage.content,
           },
-        });
-        socket.emit("ai-response", {
-          content: response,
-          chat: messagePayload.chat,
         });
       } catch (err) {
         console.error("Socket error:", err);
