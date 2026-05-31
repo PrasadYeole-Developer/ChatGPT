@@ -8,5 +8,6 @@ router.post(
   authMiddleware.authUser,
   chatControllers.createChat,
 );
+router.get("/", authMiddleware.authUser, chatControllers.getChats);
 
 module.exports = router;
