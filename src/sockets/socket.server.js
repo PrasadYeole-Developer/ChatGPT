@@ -49,7 +49,7 @@ function initSocketServer(httpServer) {
             queryVector: vectors,
             limit: 5,
             metadata: {
-              user: socket.user._id,
+              user: socket.user._id.toString(),
             },
           }),
           messageModel

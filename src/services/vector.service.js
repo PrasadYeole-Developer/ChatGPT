@@ -20,10 +20,19 @@ async function createMemory({ vectors, metadata, messageId }) {
 }
 
 async function queryMemory({ queryVector, limit = 5, metadata }) {
+  const filter = metadata
+    ? Object.fromEntries(
+        Object.entries(metadata).map(([key, value]) => [
+          key,
+          { $eq: value.toString() },
+        ])
+      )
+    : undefined;
+
   const data = await index.query({
     vector: queryVector,
     topK: limit,
-    filter: metadata ? metadata : undefined,
+    filter,
     includeMetadata: true,
   });
   return data.matches;
