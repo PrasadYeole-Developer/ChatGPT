@@ -80,4 +80,20 @@ const logoutUser = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser, logoutUser };
+const getCurrentUser = async (req, res) => {
+  try {
+    return res.status(200).json({
+      user: {
+        id: req.user._id,
+        email: req.user.email,
+        name: req.user.fullName,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to fetch user",
+    });
+  }
+};
+
+module.exports = { registerUser, loginUser, logoutUser, getCurrentUser };
